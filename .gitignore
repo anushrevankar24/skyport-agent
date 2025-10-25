@@ -1,8 +1,8 @@
-# Binaries
-skyport
-skyport-local
-skyport.exe
-skyport-*.exe
+# Binaries (in root directory only)
+/skyport
+/skyport-local
+/skyport.exe
+/skyport-*.exe
 dist/
 *.exe
 *.dll
