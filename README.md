@@ -2,7 +2,7 @@
 
 A secure tunnel client that exposes local services to the internet through encrypted tunnels.
 
-## 📥 Installation
+## Installation
 
 ### Quick Install (Recommended)
 
@@ -61,7 +61,7 @@ export PATH="$HOME/.local/bin:$PATH"
 skyport --version
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Login to Your Account
 
@@ -91,7 +91,7 @@ Your local service is now accessible via the internet!
 skyport tunnel run <tunnel-name> --background
 ```
 
-## 📖 Usage Examples
+## Usage Examples
 
 ### Expose Local Web Server
 
@@ -126,62 +126,12 @@ skyport tunnel run frontend-app
 skyport tunnel run backend-api
 ```
 
-## ⚙️ Advanced Usage
 
-### Run as System Service
-
-Install SkyPort as a system service (runs automatically on boot):
-
-```bash
-# Install service
-skyport service install
-
-# Start service
-skyport service start
-
-# Check status
-skyport service status
-
-# Stop service
-skyport service stop
-
-# Uninstall service
-skyport service uninstall
-```
-
-### Daemon Management
-
-```bash
-# Start daemon
-skyport daemon start
-
-# Stop daemon
-skyport daemon stop
-
-# Restart daemon
-skyport daemon restart
-
-# Check status
-skyport status
-```
-
-### Tunnel Management
-
-```bash
-# List all tunnels
-skyport tunnel list
-
-# Stop a running tunnel
-skyport tunnel stop <tunnel-name>
-
-# View tunnel details
-skyport tunnel info <tunnel-name>
-```
-
-## 📋 Available Commands
+## Available Commands
 
 ```bash
 skyport login              # Authenticate with SkyPort
+skyport logout             # Logout from SkyPort
 skyport status             # Show agent and tunnel status
 skyport tunnel list        # List all your tunnels
 skyport tunnel run <name>  # Start a tunnel
@@ -195,7 +145,7 @@ skyport daemon stop        # Stop daemon
 skyport --help             # Show all commands
 ```
 
-## 🔧 Configuration
+## Configuration
 
 SkyPort Agent stores configuration in:
 - **Linux/macOS**: `~/.skyport/`
@@ -206,7 +156,7 @@ Configuration includes:
 - Tunnel settings
 - Service configuration
 
-## 🛠️ For Developers
+## For Developers
 
 ### Building from Source
 
@@ -310,34 +260,43 @@ skyport-agent/
 └── README.md                  # This file
 ```
 
-## 🚀 Deployment & Release Process
+## Deployment & Release Process
 
-### Repository Setup
+### Development Workflow
 
-#### 1. Create a New GitHub Repository
+#### 1. Clone the Repository
 
 ```bash
-# Navigate to the skyport-agent directory
+# Clone the repository
+git clone https://github.com/anushrevankar24/skyport-agent.git
 cd skyport-agent
 
-# Initialize git (if not already initialized)
-git init
-
-# Add all files
-git add .
-
-# Create initial commit
-git commit -m "Initial commit: SkyPort Agent v1.0.0"
-
-# Add remote
-git remote add origin https://github.com/anushrevankar24/skyport-agent.git
-
-# Push to GitHub
-git branch -M main
-git push -u origin main
+# Create a new branch for your feature
+git checkout -b feature/your-feature-name
 ```
 
-#### 2. Verify Production Configuration
+#### 2. Make Changes and Submit Pull Request
+
+```bash
+# Make your changes
+# ... edit files ...
+
+# Stage and commit your changes
+git add .
+git commit -m "Add your feature description"
+
+# Push your branch
+git push origin feature/your-feature-name
+```
+
+Then create a Pull Request on GitHub:
+1. Go to https://github.com/anushrevankar24/skyport-agent
+2. Click "New Pull Request"
+3. Select your branch
+4. Add description of your changes
+5. Submit the PR for review
+
+#### 3. Verify Production Configuration
 
 Before creating your first release, ensure `scripts/build-config-prod.env` has the correct production URLs:
 
@@ -460,15 +419,8 @@ GOOS=darwin GOARCH=arm64 ./scripts/build-prod.sh
 GOOS=windows GOARCH=amd64 ./scripts/build-prod.sh
 ```
 
-## 🔍 How It Works
 
-1. **Compile-time Configuration**: Production URLs are baked into the binary during build
-2. **Authentication**: Secure OAuth-based login via web browser
-3. **Tunnel Protocol**: WebSocket-based encrypted tunnel connection
-4. **Service Management**: Optional systemd/launchd integration for auto-start
-5. **Health Monitoring**: Automatic reconnection and health checks
-
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### Command not found
 
@@ -568,34 +520,8 @@ Remove-Item "$env:LOCALAPPDATA\SkyPort" -Recurse
 # Remove from PATH manually via Environment Variables
 ```
 
-## 🔒 Security Best Practices
 
-1. **Never commit secrets** to the repository
-2. **Sign releases** (optional): Enable GPG signing for tags
-3. **Verify checksums**: Instruct users to verify `checksums.txt`
-4. **Use HTTPS**: All URLs in build config should use HTTPS
 
-## 📊 Monitoring Releases
-
-Track release downloads:
-1. Go to repository Insights → Traffic
-2. Check release download counts
-3. Monitor issues for installation problems
-
-## 📚 Additional Resources
-
-- **Documentation**: [https://docs.skyports.tech](https://docs.skyports.tech)
-- **Issues**: [GitHub Issues](https://github.com/anushrevankar24/skyport-agent/issues)
-- **Website**: [https://skyports.tech](https://skyports.tech)
-- **Repository**: [https://github.com/anushrevankar24/skyport-agent](https://github.com/anushrevankar24/skyport-agent)
-- **Releases**: [https://github.com/anushrevankar24/skyport-agent/releases](https://github.com/anushrevankar24/skyport-agent/releases)
-
-### Development Resources
-
-- GitHub Actions Docs: https://docs.github.com/en/actions
-- Go Cross-Compilation: https://go.dev/doc/install/source#environment
-- Semantic Versioning: https://semver.org/
-
-## 📄 License
+## License
 
 See LICENSE file.
