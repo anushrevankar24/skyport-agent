@@ -53,7 +53,8 @@ jobs:
           GOOS=linux GOARCH=amd64 go build \
             -ldflags="-X 'skyport-agent/internal/config.DefaultServerURL=$SKYPORT_SERVER_URL' \
                       -X 'skyport-agent/internal/config.DefaultWebURL=$SKYPORT_WEB_URL' \
-                      -X 'skyport-agent/internal/config.DefaultTunnelDomain=$SKYPORT_TUNNEL_DOMAIN'" \
+                      -X 'skyport-agent/internal/config.DefaultTunnelDomain=$SKYPORT_TUNNEL_DOMAIN' \
+                      -X 'skyport-agent/internal/config.DebugMode=$DEBUG_MODE'" \
             -o dist/skyport-linux-amd64 \
             ./cmd/skyport
           
@@ -62,7 +63,8 @@ jobs:
           GOOS=linux GOARCH=arm64 go build \
             -ldflags="-X 'skyport-agent/internal/config.DefaultServerURL=$SKYPORT_SERVER_URL' \
                       -X 'skyport-agent/internal/config.DefaultWebURL=$SKYPORT_WEB_URL' \
-                      -X 'skyport-agent/internal/config.DefaultTunnelDomain=$SKYPORT_TUNNEL_DOMAIN'" \
+                      -X 'skyport-agent/internal/config.DefaultTunnelDomain=$SKYPORT_TUNNEL_DOMAIN' \
+                      -X 'skyport-agent/internal/config.DebugMode=$DEBUG_MODE'" \
             -o dist/skyport-linux-arm64 \
             ./cmd/skyport
           
@@ -71,7 +73,8 @@ jobs:
           GOOS=linux GOARCH=arm GOARM=7 go build \
             -ldflags="-X 'skyport-agent/internal/config.DefaultServerURL=$SKYPORT_SERVER_URL' \
                       -X 'skyport-agent/internal/config.DefaultWebURL=$SKYPORT_WEB_URL' \
-                      -X 'skyport-agent/internal/config.DefaultTunnelDomain=$SKYPORT_TUNNEL_DOMAIN'" \
+                      -X 'skyport-agent/internal/config.DefaultTunnelDomain=$SKYPORT_TUNNEL_DOMAIN' \
+                      -X 'skyport-agent/internal/config.DebugMode=$DEBUG_MODE'" \
             -o dist/skyport-linux-arm \
             ./cmd/skyport
           
@@ -80,7 +83,8 @@ jobs:
           GOOS=darwin GOARCH=amd64 go build \
             -ldflags="-X 'skyport-agent/internal/config.DefaultServerURL=$SKYPORT_SERVER_URL' \
                       -X 'skyport-agent/internal/config.DefaultWebURL=$SKYPORT_WEB_URL' \
-                      -X 'skyport-agent/internal/config.DefaultTunnelDomain=$SKYPORT_TUNNEL_DOMAIN'" \
+                      -X 'skyport-agent/internal/config.DefaultTunnelDomain=$SKYPORT_TUNNEL_DOMAIN' \
+                      -X 'skyport-agent/internal/config.DebugMode=$DEBUG_MODE'" \
             -o dist/skyport-darwin-amd64 \
             ./cmd/skyport
           
@@ -89,7 +93,8 @@ jobs:
           GOOS=darwin GOARCH=arm64 go build \
             -ldflags="-X 'skyport-agent/internal/config.DefaultServerURL=$SKYPORT_SERVER_URL' \
                       -X 'skyport-agent/internal/config.DefaultWebURL=$SKYPORT_WEB_URL' \
-                      -X 'skyport-agent/internal/config.DefaultTunnelDomain=$SKYPORT_TUNNEL_DOMAIN'" \
+                      -X 'skyport-agent/internal/config.DefaultTunnelDomain=$SKYPORT_TUNNEL_DOMAIN' \
+                      -X 'skyport-agent/internal/config.DebugMode=$DEBUG_MODE'" \
             -o dist/skyport-darwin-arm64 \
             ./cmd/skyport
           
@@ -98,7 +103,8 @@ jobs:
           GOOS=windows GOARCH=amd64 go build \
             -ldflags="-X 'skyport-agent/internal/config.DefaultServerURL=$SKYPORT_SERVER_URL' \
                       -X 'skyport-agent/internal/config.DefaultWebURL=$SKYPORT_WEB_URL' \
-                      -X 'skyport-agent/internal/config.DefaultTunnelDomain=$SKYPORT_TUNNEL_DOMAIN'" \
+                      -X 'skyport-agent/internal/config.DefaultTunnelDomain=$SKYPORT_TUNNEL_DOMAIN' \
+                      -X 'skyport-agent/internal/config.DebugMode=$DEBUG_MODE'" \
             -o dist/skyport-windows-amd64.exe \
             ./cmd/skyport
           
@@ -107,7 +113,8 @@ jobs:
           GOOS=windows GOARCH=386 go build \
             -ldflags="-X 'skyport-agent/internal/config.DefaultServerURL=$SKYPORT_SERVER_URL' \
                       -X 'skyport-agent/internal/config.DefaultWebURL=$SKYPORT_WEB_URL' \
-                      -X 'skyport-agent/internal/config.DefaultTunnelDomain=$SKYPORT_TUNNEL_DOMAIN'" \
+                      -X 'skyport-agent/internal/config.DefaultTunnelDomain=$SKYPORT_TUNNEL_DOMAIN' \
+                      -X 'skyport-agent/internal/config.DebugMode=$DEBUG_MODE'" \
             -o dist/skyport-windows-386.exe \
             ./cmd/skyport
           
