@@ -1,0 +1,179 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+jobs:
+  build-and-release:
+    name: Build and Release
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Get version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Build binaries for all platforms
+        run: |
+          # Load production configuration
+          if [ -f "scripts/build-config-prod.env" ]; then
+            source scripts/build-config-prod.env
+          else
+            echo "Error: scripts/build-config-prod.env not found!"
+            exit 1
+          fi
+          
+          echo "Building SkyPort Agent v${{ steps.version.outputs.VERSION }}"
+          echo "Server URL: $SKYPORT_SERVER_URL"
+          echo "Web URL: $SKYPORT_WEB_URL"
+          echo "Tunnel Domain: $SKYPORT_TUNNEL_DOMAIN"
+          
+          # Create dist directory
+          mkdir -p dist
+          
+          # Build for Linux amd64
+          echo "Building for Linux amd64..."
+          GOOS=linux GOARCH=amd64 go build \
+            -ldflags="-X 'skyport-agent/internal/config.DefaultServerURL=$SKYPORT_SERVER_URL' \
+                      -X 'skyport-agent/internal/config.DefaultWebURL=$SKYPORT_WEB_URL' \
+                      -X 'skyport-agent/internal/config.DefaultTunnelDomain=$SKYPORT_TUNNEL_DOMAIN'" \
+            -o dist/skyport-linux-amd64 \
+            cmd/skyport/main.go
+          
+          # Build for Linux arm64
+          echo "Building for Linux arm64..."
+          GOOS=linux GOARCH=arm64 go build \
+            -ldflags="-X 'skyport-agent/internal/config.DefaultServerURL=$SKYPORT_SERVER_URL' \
+                      -X 'skyport-agent/internal/config.DefaultWebURL=$SKYPORT_WEB_URL' \
+                      -X 'skyport-agent/internal/config.DefaultTunnelDomain=$SKYPORT_TUNNEL_DOMAIN'" \
+            -o dist/skyport-linux-arm64 \
+            cmd/skyport/main.go
+          
+          # Build for Linux arm (32-bit)
+          echo "Building for Linux arm..."
+          GOOS=linux GOARCH=arm GOARM=7 go build \
+            -ldflags="-X 'skyport-agent/internal/config.DefaultServerURL=$SKYPORT_SERVER_URL' \
+                      -X 'skyport-agent/internal/config.DefaultWebURL=$SKYPORT_WEB_URL' \
+                      -X 'skyport-agent/internal/config.DefaultTunnelDomain=$SKYPORT_TUNNEL_DOMAIN'" \
+            -o dist/skyport-linux-arm \
+            cmd/skyport/main.go
+          
+          # Build for macOS amd64 (Intel)
+          echo "Building for macOS amd64..."
+          GOOS=darwin GOARCH=amd64 go build \
+            -ldflags="-X 'skyport-agent/internal/config.DefaultServerURL=$SKYPORT_SERVER_URL' \
+                      -X 'skyport-agent/internal/config.DefaultWebURL=$SKYPORT_WEB_URL' \
+                      -X 'skyport-agent/internal/config.DefaultTunnelDomain=$SKYPORT_TUNNEL_DOMAIN'" \
+            -o dist/skyport-darwin-amd64 \
+            cmd/skyport/main.go
+          
+          # Build for macOS arm64 (M1/M2/M3)
+          echo "Building for macOS arm64..."
+          GOOS=darwin GOARCH=arm64 go build \
+            -ldflags="-X 'skyport-agent/internal/config.DefaultServerURL=$SKYPORT_SERVER_URL' \
+                      -X 'skyport-agent/internal/config.DefaultWebURL=$SKYPORT_WEB_URL' \
+                      -X 'skyport-agent/internal/config.DefaultTunnelDomain=$SKYPORT_TUNNEL_DOMAIN'" \
+            -o dist/skyport-darwin-arm64 \
+            cmd/skyport/main.go
+          
+          # Build for Windows amd64
+          echo "Building for Windows amd64..."
+          GOOS=windows GOARCH=amd64 go build \
+            -ldflags="-X 'skyport-agent/internal/config.DefaultServerURL=$SKYPORT_SERVER_URL' \
+                      -X 'skyport-agent/internal/config.DefaultWebURL=$SKYPORT_WEB_URL' \
+                      -X 'skyport-agent/internal/config.DefaultTunnelDomain=$SKYPORT_TUNNEL_DOMAIN'" \
+            -o dist/skyport-windows-amd64.exe \
+            cmd/skyport/main.go
+          
+          # Build for Windows 386 (32-bit)
+          echo "Building for Windows 386..."
+          GOOS=windows GOARCH=386 go build \
+            -ldflags="-X 'skyport-agent/internal/config.DefaultServerURL=$SKYPORT_SERVER_URL' \
+                      -X 'skyport-agent/internal/config.DefaultWebURL=$SKYPORT_WEB_URL' \
+                      -X 'skyport-agent/internal/config.DefaultTunnelDomain=$SKYPORT_TUNNEL_DOMAIN'" \
+            -o dist/skyport-windows-386.exe \
+            cmd/skyport/main.go
+          
+          echo "All builds completed successfully!"
+          ls -lh dist/
+
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum * > checksums.txt
+          cat checksums.txt
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            dist/skyport-linux-amd64
+            dist/skyport-linux-arm64
+            dist/skyport-linux-arm
+            dist/skyport-darwin-amd64
+            dist/skyport-darwin-arm64
+            dist/skyport-windows-amd64.exe
+            dist/skyport-windows-386.exe
+            dist/checksums.txt
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          body: |
+            ## Installation
+            
+            ### Quick Install
+            
+            **macOS / Linux:**
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash
+            ```
+            
+            **Windows (PowerShell):**
+            ```powershell
+            irm https://raw.githubusercontent.com/${{ github.repository }}/main/install.ps1 | iex
+            ```
+            
+            ### Manual Download
+            
+            Download the appropriate binary for your platform:
+            - **Linux (64-bit)**: `skyport-linux-amd64`
+            - **Linux (ARM64)**: `skyport-linux-arm64`
+            - **Linux (ARM)**: `skyport-linux-arm`
+            - **macOS (Intel)**: `skyport-darwin-amd64`
+            - **macOS (M1/M2/M3)**: `skyport-darwin-arm64`
+            - **Windows (64-bit)**: `skyport-windows-amd64.exe`
+            - **Windows (32-bit)**: `skyport-windows-386.exe`
+            
+            ### Verify Download
+            
+            Check the `checksums.txt` file to verify your download.
+            
+            ### Getting Started
+            
+            ```bash
+            skyport login
+            skyport tunnel run <tunnel-name>
+            ```
+            
+            For full documentation, visit: https://github.com/${{ github.repository }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: skyport-binaries-${{ steps.version.outputs.VERSION }}
+          path: dist/
+          retention-days: 30
+

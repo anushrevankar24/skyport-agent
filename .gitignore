@@ -1,0 +1,45 @@
+# Binaries
+skyport
+skyport-local
+skyport.exe
+skyport-*.exe
+dist/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test binaries
+*.test
+
+# Coverage
+*.out
+coverage.txt
+
+# Go workspace file
+go.work
+
+# Build artifacts
+build/
+bin/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+
+# Configuration (local dev only)
+.env
+.env.local
+
+# Temporary files
+tmp/
+temp/
