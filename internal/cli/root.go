@@ -28,8 +28,8 @@ Features:
 - HTTP/HTTPS/WebSocket support`,
 	Version: version,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		// Skip network check for commands that don't need it
-		if cmd.Name() == "version" || cmd.Name() == "skyport" || cmd.Name() == "uninstall" {
+		// Skip network check for commands that don't need it or handle it themselves
+		if cmd.Name() == "version" || cmd.Name() == "skyport" || cmd.Name() == "uninstall" || cmd.Name() == "daemon" {
 			return nil
 		}
 
@@ -63,7 +63,7 @@ func init() {
 	rootCmd.AddCommand(loginCmd)
 	rootCmd.AddCommand(logoutCmd)
 	rootCmd.AddCommand(tunnelCmd)
-	// rootCmd.AddCommand(daemonCmd) // Hidden for now
+	rootCmd.AddCommand(daemonCmd)
 	rootCmd.AddCommand(serviceCmd)
 	rootCmd.AddCommand(agentStatusCmd)
 	rootCmd.AddCommand(versionCmd)

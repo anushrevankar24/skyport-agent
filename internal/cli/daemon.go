@@ -1,11 +1,10 @@
 package cli
 
 import (
-	"fmt"
-	"log"
 	"os"
 	"os/signal"
 	"skyport-agent/internal/config"
+	"skyport-agent/internal/logger"
 	"skyport-agent/internal/service"
 	"syscall"
 	"time"
@@ -42,36 +41,48 @@ func init() {
 }
 
 func runDaemon(cmd *cobra.Command, args []string) {
-	fmt.Println("Starting SkyPort Agent Daemon...")
+	logger.Debug("Starting SkyPort Agent Daemon...")
 
 	// Load configuration
 	cfg, err := loadDaemonConfig()
 	if err != nil {
-		log.Fatalf("Failed to load configuration: %v", err)
+		logger.Error("Failed to load configuration: %v", err)
+		os.Exit(1)
 	}
+
+	logger.Debug("Configuration loaded successfully")
+	logger.Debug("Server URL: %s", cfg.ServerURL)
+	logger.Debug("Tunnel Domain: %s", cfg.TunnelDomain)
 
 	// Create service manager
 	manager := service.NewManager(cfg)
+	logger.Debug("Service manager created")
 
 	// Create health monitor
 	healthMonitor := service.NewHealthMonitor(manager)
+	logger.Debug("Health monitor created")
 
 	// Create network monitor
 	networkMonitor := service.NewNetworkMonitor()
+	logger.Debug("Network monitor created")
 
 	// Start background manager
 	manager.StartSilently()
+	logger.Debug("Background manager started")
 
-	// If specific tunnels were requested, connect them explicitly (non-persistent)
+	// If specific tunnels were requested, connect them explicitly with auto-reconnect
 	if len(daemonConfig.connectTunnels) > 0 {
+		logger.Debug("Connecting %d requested tunnel(s)...", len(daemonConfig.connectTunnels))
 		go func() {
 			// Small delay to allow auth/monitors to initialize
 			time.Sleep(500 * time.Millisecond)
 			for _, tID := range daemonConfig.connectTunnels {
-				if err := manager.ConnectTunnel(tID, false); err != nil {
-					log.Printf("Failed to connect requested tunnel %s: %v", tID, err)
+				logger.Debug("Attempting to connect tunnel: %s", tID)
+				// Enable auto-reconnect (true) so tunnel stays connected
+				if err := manager.ConnectTunnel(tID, true); err != nil {
+					logger.Error("Failed to connect tunnel %s: %v", tID, err)
 				} else {
-					log.Printf("Connected requested tunnel: %s", tID)
+					logger.Info("Connected tunnel: %s (auto-reconnect enabled)", tID)
 				}
 			}
 		}()
@@ -79,9 +90,11 @@ func runDaemon(cmd *cobra.Command, args []string) {
 
 	// Start health monitoring
 	healthMonitor.Start()
+	logger.Debug("Health monitoring started")
 
 	// Start network monitoring
 	networkMonitor.Start()
+	logger.Debug("Network monitoring started")
 
 	// Handle network changes
 	go handleNetworkChanges(networkMonitor, manager)
@@ -90,8 +103,8 @@ func runDaemon(cmd *cobra.Command, args []string) {
 	setupSignalHandling(manager, healthMonitor, networkMonitor)
 
 	// Log startup
-	log.Printf("SkyPort Agent Daemon started successfully")
-	log.Printf("Configuration: %+v", daemonConfig)
+	logger.Info("SkyPort Agent Daemon started successfully")
+	logger.Debug("Daemon configuration: %+v", daemonConfig)
 
 	// Keep running
 	if daemonConfig.foreground {
@@ -111,7 +124,7 @@ func handleNetworkChanges(networkMonitor *service.NetworkMonitor, manager *servi
 	changeChan := networkMonitor.GetChangeChannel()
 
 	for change := range changeChan {
-		log.Printf("Network change detected: %s", change.Description)
+		logger.Info("Network change detected: %s", change.Description)
 
 		// Handle different types of network changes
 		switch change.Type {
@@ -120,20 +133,20 @@ func handleNetworkChanges(networkMonitor *service.NetworkMonitor, manager *servi
 		case "interface_change":
 			handleInterfaceChange(manager)
 		default:
-			log.Printf("Unknown network change type: %s", change.Type)
+			logger.Debug("Unknown network change type: %s", change.Type)
 		}
 	}
 }
 
 func handleIPChange(manager *service.Manager) {
-	log.Println("Handling IP address change...")
+	logger.Debug("Handling IP address change...")
 
 	// Disconnect all tunnels
 	activeTunnels := manager.GetActiveTunnels()
 	for _, tunnelID := range activeTunnels {
-		log.Printf("Disconnecting tunnel %s due to IP change", tunnelID)
+		logger.Debug("Disconnecting tunnel %s due to IP change", tunnelID)
 		if err := manager.DisconnectTunnel(tunnelID); err != nil {
-			log.Printf("Error disconnecting tunnel %s: %v", tunnelID, err)
+			logger.Error("Error disconnecting tunnel %s: %v", tunnelID, err)
 		}
 	}
 
@@ -142,15 +155,15 @@ func handleIPChange(manager *service.Manager) {
 
 	// Reconnect tunnels
 	for _, tunnelID := range activeTunnels {
-		log.Printf("Reconnecting tunnel %s after IP change", tunnelID)
+		logger.Info("Reconnecting tunnel %s after IP change", tunnelID)
 		if err := manager.ConnectTunnel(tunnelID, false); err != nil {
-			log.Printf("Error reconnecting tunnel %s: %v", tunnelID, err)
+			logger.Error("Error reconnecting tunnel %s: %v", tunnelID, err)
 		}
 	}
 }
 
 func handleInterfaceChange(manager *service.Manager) {
-	log.Println("Handling network interface change...")
+	logger.Debug("Handling network interface change...")
 
 	// Similar to IP change, but may need different handling
 	// For now, treat it the same as IP change
@@ -165,11 +178,11 @@ func setupSignalHandling(manager *service.Manager, healthMonitor *service.Health
 		for sig := range sigChan {
 			switch sig {
 			case syscall.SIGINT, syscall.SIGTERM:
-				log.Printf("Received signal %v, shutting down gracefully", sig)
+				logger.Info("Received signal %v, shutting down gracefully", sig)
 				gracefulShutdown(manager, healthMonitor, networkMonitor)
 				os.Exit(0)
 			case syscall.SIGHUP:
-				log.Println("Received SIGHUP, reloading configuration")
+				logger.Debug("Received SIGHUP, reloading configuration")
 				// TODO: Implement configuration reload
 			}
 		}
@@ -177,23 +190,26 @@ func setupSignalHandling(manager *service.Manager, healthMonitor *service.Health
 }
 
 func gracefulShutdown(manager *service.Manager, healthMonitor *service.HealthMonitor, networkMonitor *service.NetworkMonitor) {
-	log.Println("Starting graceful shutdown...")
+	logger.Debug("Starting graceful shutdown...")
 
 	// Stop network monitoring
 	networkMonitor.Stop()
+	logger.Debug("Network monitoring stopped")
 
 	// Stop health monitoring
 	healthMonitor.Stop()
+	logger.Debug("Health monitoring stopped")
 
 	// Stop manager
 	manager.StopSilently()
+	logger.Debug("Manager stopped")
 
-	log.Println("Graceful shutdown complete")
+	logger.Info("Graceful shutdown complete")
 }
 
 func runForeground(manager *service.Manager, healthMonitor *service.HealthMonitor, networkMonitor *service.NetworkMonitor) {
-	fmt.Println("Running in foreground mode...")
-	fmt.Println("Press Ctrl+C to stop")
+	logger.Info("Running in foreground mode...")
+	logger.Info("Press Ctrl+C to stop")
 
 	// Keep running until interrupted
 	select {}
@@ -206,6 +222,6 @@ func runBackground(manager *service.Manager, healthMonitor *service.HealthMonito
 
 		// Periodic status check
 		status := healthMonitor.GetHealthStatus()
-		log.Printf("Daemon status: %+v", status)
+		logger.Debug("Daemon status: %+v", status)
 	}
 }

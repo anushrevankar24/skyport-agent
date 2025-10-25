@@ -9,7 +9,9 @@ import (
 	"os/signal"
 	"skyport-agent/internal/auth"
 	"skyport-agent/internal/config"
+	"skyport-agent/internal/logger"
 	"skyport-agent/internal/service"
+	"strings"
 	"syscall"
 	"text/tabwriter"
 	"time"
@@ -81,9 +83,11 @@ var stopCmd = &cobra.Command{
 			log.Fatalf(" Failed to get tunnel list: %v", err)
 		}
 		var tunnelID string
+		var tunnelName string
 		for _, t := range tunnels {
 			if t.ID == nameOrID || t.Name == nameOrID {
 				tunnelID = t.ID
+				tunnelName = t.Name
 				break
 			}
 		}
@@ -92,7 +96,10 @@ var stopCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		// Send stop request to server API
+		// First, kill any local background daemon processes for this tunnel
+		killBackgroundProcess(tunnelID, tunnelName)
+
+		// Then send stop request to server API
 		client := &http.Client{Timeout: 10 * time.Second}
 		req, err := http.NewRequest("POST", fmt.Sprintf("%s/tunnels/%s/stop", defaultConfig.ServerURL, tunnelID), nil)
 		if err != nil {
@@ -107,11 +114,11 @@ var stopCmd = &cobra.Command{
 		defer resp.Body.Close()
 
 		if resp.StatusCode == http.StatusOK {
-			fmt.Printf(" Stopped tunnel '%s'\n", nameOrID)
+			fmt.Printf(" ✓ Stopped tunnel '%s'\n", nameOrID)
 		} else if resp.StatusCode == http.StatusBadRequest {
-			fmt.Println("  Tunnel is not currently active.")
+			fmt.Println(" ⚠ Tunnel is not currently active")
 		} else {
-			fmt.Printf(" Failed to stop tunnel (status: %d)\n", resp.StatusCode)
+			fmt.Printf(" ✗ Failed to stop tunnel (status: %d)\n", resp.StatusCode)
 		}
 	},
 }
@@ -284,21 +291,27 @@ func runTunnel(cmd *cobra.Command, args []string) {
 
 	// Check if user is authenticated using unified auth system
 	if !authManager.IsAuthenticated() {
-		fmt.Println(" You are not logged in. Please run 'skyport login' first.")
+		fmt.Println(" ✗ You are not logged in. Please run 'skyport login' first.")
 		os.Exit(1)
 	}
 
 	// Get token for server communication
 	token, err := authManager.GetValidToken()
 	if err != nil {
-		fmt.Println(" Your session has expired. Please run 'skyport login' again.")
+		fmt.Println(" ✗ Your session has expired. Please run 'skyport login' again.")
 		os.Exit(1)
 	}
 
 	// Get tunnels from server to find target tunnel
 	tunnelsFromServer, err := authManager.FetchTunnels(token)
 	if err != nil {
-		log.Fatalf(" Failed to get tunnel list: %v", err)
+		if config.IsDebugMode() {
+			log.Fatalf(" Failed to get tunnel list: %v", err)
+		} else {
+			fmt.Println(" ✗ Failed to connect to SkyPort server")
+			fmt.Println(" Please check your internet connection and try again")
+			os.Exit(1)
+		}
 	}
 
 	var targetTunnel *config.Tunnel
@@ -310,14 +323,14 @@ func runTunnel(cmd *cobra.Command, args []string) {
 	}
 
 	if targetTunnel == nil {
-		fmt.Printf(" Tunnel '%s' not found.\n", tunnelNameOrID)
+		fmt.Printf(" ✗ Tunnel '%s' not found.\n", tunnelNameOrID)
 		fmt.Println(" Use 'skyport tunnel list' to see available tunnels")
 		os.Exit(1)
 	}
 
 	// Check if tunnel is already running on server
 	if targetTunnel.IsActive {
-		fmt.Printf("  Tunnel '%s' is already running on the server\n", targetTunnel.Name)
+		fmt.Printf(" ⚠ Tunnel '%s' is already running\n", targetTunnel.Name)
 		fmt.Println(" Use 'skyport tunnel stop", targetTunnel.Name, "' to stop it first")
 		os.Exit(1)
 	}
@@ -343,41 +356,79 @@ func runTunnel(cmd *cobra.Command, args []string) {
 	// setAutoStart, _ := cmd.Flags().GetBool("auto-start")
 
 	if runInBackground {
-		// Optional: mark for auto-start persistence
-		// if setAutoStart {
-		// 	if err := manager.SetTunnelAutoStart(targetTunnel.ID, true); err != nil {
-		// 		log.Fatalf(" Failed to set auto-start: %v", err)
-		// 	}
-		// 	fmt.Println(" Marked for auto-start on boot (requires service).")
-		// }
-
 		// Start a detached background process that connects this tunnel now
 		exe, err := os.Executable()
 		if err != nil {
-			log.Fatalf(" Failed to resolve executable path: %v", err)
+			if config.IsDebugMode() {
+				log.Fatalf(" Failed to resolve executable path: %v", err)
+			} else {
+				fmt.Println(" ✗ Failed to start tunnel")
+				fmt.Println(" Please contact SkyPort support if this issue persists")
+				os.Exit(1)
+			}
 		}
-		cmd := exec.Command(exe, "daemon", "--connect-tunnel", targetTunnel.ID)
-		cmd.Stdout = nil
-		cmd.Stderr = nil
+
+		// Create log file for background process (always create for debugging if needed)
+		logDir := os.TempDir()
+		logFile := fmt.Sprintf("%s/skyport-tunnel-%s.log", logDir, targetTunnel.Name)
+		logFd, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		if err != nil {
+			if config.IsDebugMode() {
+				log.Fatalf(" Failed to create log file: %v", err)
+			} else {
+				fmt.Println(" ✗ Failed to start tunnel")
+				fmt.Println(" Please contact SkyPort support if this issue persists")
+				os.Exit(1)
+			}
+		}
+
+		cmd := exec.Command(exe, "daemon", "--connect-tunnel", targetTunnel.ID, "--foreground")
+		cmd.Stdout = logFd
+		cmd.Stderr = logFd
 		cmd.Stdin = nil
 		configureDaemonProcess(cmd)
 
 		if err := cmd.Start(); err != nil {
-			log.Fatalf(" Failed to start background process: %v", err)
+			logFd.Close()
+			if config.IsDebugMode() {
+				log.Fatalf(" Failed to start background process: %v", err)
+			} else {
+				fmt.Println(" ✗ Failed to start tunnel")
+				fmt.Println(" Please contact SkyPort support if this issue persists")
+				os.Exit(1)
+			}
 		}
-		fmt.Printf(" Started background process (pid %d) for tunnel '%s'\n", cmd.Process.Pid, targetTunnel.Name)
-		fmt.Println(" To view status: skyport service status (if installed) or 'ps' + logs")
+
+		// Close the file descriptor in parent process (child process keeps it open)
+		logFd.Close()
+
+		// Show clean output to users
+		fmt.Printf(" ✓ Started background process (pid %d) for tunnel '%s'\n", cmd.Process.Pid, targetTunnel.Name)
+
+		// Only show log file location in debug mode
+		if config.IsDebugMode() {
+			fmt.Printf(" [DEBUG] Logs: %s\n", logFile)
+			fmt.Printf(" [DEBUG] To view logs: tail -f %s\n", logFile)
+		}
+
+		fmt.Println(" To view status: skyport tunnel status")
 		return
 	}
 
 	if err := manager.ConnectTunnel(targetTunnel.ID, false); err != nil {
-		log.Fatalf(" Failed to start tunnel: %v", err)
+		if config.IsDebugMode() {
+			log.Fatalf(" Failed to start tunnel: %v", err)
+		} else {
+			fmt.Println(" ✗ Failed to start tunnel")
+			fmt.Println(" Please check that your local service is running and try again")
+			fmt.Println(" If the issue persists, contact SkyPort support")
+			os.Exit(1)
+		}
 	}
 
-	fmt.Printf(" Tunnel '%s' started successfully\n", targetTunnel.Name)
-	fmt.Printf(" Access your service at: http://%s.%s\n", targetTunnel.Subdomain, defaultConfig.TunnelDomain)
-	fmt.Println("  To stop: skyport tunnel stop", targetTunnel.Name)
-	fmt.Println("  Press Ctrl+C to stop the tunnel")
+	fmt.Printf(" ✓ Tunnel '%s' started successfully\n", targetTunnel.Name)
+	fmt.Printf(" ✓ Access your service at: http://%s.%s\n", targetTunnel.Subdomain, defaultConfig.TunnelDomain)
+	fmt.Println(" Press Ctrl+C to stop the tunnel")
 
 	// Keep the tunnel running until interrupted
 	// Set up signal handling for graceful shutdown
@@ -390,10 +441,12 @@ func runTunnel(cmd *cobra.Command, args []string) {
 
 	// Disconnect the tunnel
 	if err := manager.DisconnectTunnel(targetTunnel.ID); err != nil {
-		log.Printf(" Warning: Failed to disconnect tunnel: %v", err)
+		if config.IsDebugMode() {
+			log.Printf(" Warning: Failed to disconnect tunnel: %v", err)
+		}
 	}
 
-	fmt.Println(" Tunnel stopped.")
+	fmt.Println(" ✓ Tunnel stopped.")
 }
 
 func runStatus(cmd *cobra.Command, args []string) {
@@ -455,6 +508,42 @@ func runStatus(cmd *cobra.Command, args []string) {
 	w.Flush()
 	fmt.Println()
 	fmt.Println("  Use Ctrl+C in the terminal running the tunnel to stop it")
+}
+
+// killBackgroundProcess finds and kills any background daemon process for the given tunnel
+func killBackgroundProcess(tunnelID string, tunnelName string) {
+	// Use ps to find processes matching "skyport daemon --connect-tunnel <tunnelID>"
+	out, err := exec.Command("ps", "aux").Output()
+	if err != nil {
+		logger.Debug("Failed to list processes: %v", err)
+		return
+	}
+
+	lines := strings.Split(string(out), "\n")
+	for _, line := range lines {
+		// Look for our daemon process with the tunnel ID
+		if strings.Contains(line, "skyport") && strings.Contains(line, "daemon") &&
+			strings.Contains(line, "--connect-tunnel") && strings.Contains(line, tunnelID) {
+			// Extract PID (second field in ps aux output)
+			fields := strings.Fields(line)
+			if len(fields) < 2 {
+				continue
+			}
+			pid := fields[1]
+
+			logger.Debug("Found background process (pid %s) for tunnel '%s', stopping it...", pid, tunnelName)
+
+			// Kill the process
+			killCmd := exec.Command("kill", pid)
+			if err := killCmd.Run(); err != nil {
+				logger.Debug("Failed to stop process %s: %v", pid, err)
+			} else {
+				logger.Info("Stopped background process for tunnel '%s'", tunnelName)
+				// Give it a moment to terminate
+				time.Sleep(500 * time.Millisecond)
+			}
+		}
+	}
 }
 
 // Note: PID file tracking removed - all tunnel state is now managed by the server
