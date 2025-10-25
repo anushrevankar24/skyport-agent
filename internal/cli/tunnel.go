@@ -123,7 +123,7 @@ func init() {
 	tunnelCmd.AddCommand(stopCmd)
 
 	// Flags for "run"
-	runCmd.Flags().Bool("background", false, "Run tunnel in background (daemon mode)")
+	runCmd.Flags().Bool("background", false, "Run tunnel in background")
 	// runCmd.Flags().Bool("auto-start", false, "Mark tunnel to auto-start on boot (requires service)")
 
 	// autostart subcommand
@@ -351,7 +351,7 @@ func runTunnel(cmd *cobra.Command, args []string) {
 		// 	fmt.Println(" Marked for auto-start on boot (requires service).")
 		// }
 
-		// Start a detached daemon that connects this tunnel now
+		// Start a detached background process that connects this tunnel now
 		exe, err := os.Executable()
 		if err != nil {
 			log.Fatalf(" Failed to resolve executable path: %v", err)
@@ -363,9 +363,9 @@ func runTunnel(cmd *cobra.Command, args []string) {
 		configureDaemonProcess(cmd)
 
 		if err := cmd.Start(); err != nil {
-			log.Fatalf(" Failed to start background daemon: %v", err)
+			log.Fatalf(" Failed to start background process: %v", err)
 		}
-		fmt.Printf(" Started background daemon (pid %d) for tunnel '%s'\n", cmd.Process.Pid, targetTunnel.Name)
+		fmt.Printf(" Started background process (pid %d) for tunnel '%s'\n", cmd.Process.Pid, targetTunnel.Name)
 		fmt.Println(" To view status: skyport service status (if installed) or 'ps' + logs")
 		return
 	}

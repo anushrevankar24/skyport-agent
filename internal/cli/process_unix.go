@@ -14,3 +14,4 @@ func configureDaemonProcess(cmd *exec.Cmd) {
 		Setsid: true, // Create a new session and detach from terminal
 	}
 }
+

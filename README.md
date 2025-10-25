@@ -140,8 +140,6 @@ skyport service install    # Install as system service
 skyport service start      # Start the service
 skyport service stop       # Stop the service
 skyport service status     # Check service status
-skyport daemon start       # Start daemon
-skyport daemon stop        # Stop daemon
 skyport --help             # Show all commands
 ```
 
@@ -498,26 +496,76 @@ The install scripts automatically add the binary to PATH. If users still have is
 - If not found, manually add installation directory to PATH
 - May need to restart terminal
 
-### Uninstall
+## Uninstall
+
+### Option 1: Using Built-in Command (Recommended)
+
+If the `skyport` command is available:
+
+```bash
+skyport uninstall
+```
+
+This will:
+- Stop and remove the system service (if installed)
+- Remove the binary
+- Optionally remove configuration files
+- Clear stored credentials
+
+**Flags:**
+```bash
+skyport uninstall --yes        # Skip confirmations
+skyport uninstall --keep-config  # Keep configuration files
+skyport uninstall --force      # Force uninstall
+```
+
+### Option 2: Using Uninstall Script
+
+If the binary is corrupted or missing:
 
 **Linux/macOS:**
 ```bash
+curl -fsSL https://raw.githubusercontent.com/anushrevankar24/skyport-agent/main/uninstall.sh | bash
+```
+
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/anushrevankar24/skyport-agent/main/uninstall.ps1 | iex
+```
+
+### Option 3: Manual Uninstall
+
+**Linux/macOS:**
+```bash
+# Stop and remove service (if installed)
+sudo systemctl stop skyport-agent
+sudo systemctl disable skyport-agent
+sudo rm -f /etc/systemd/system/skyport-agent.service
+sudo systemctl daemon-reload
+
 # Remove binary
-sudo rm /usr/local/bin/skyport
+sudo rm -f /usr/local/bin/skyport
 
 # Remove configuration
 rm -rf ~/.skyport
 
-# Remove service (if installed)
-skyport service uninstall
+# Clear keyring
+secret-tool clear service skyport-agent
 ```
 
 **Windows:**
 ```powershell
-# Remove binary
-Remove-Item "$env:LOCALAPPDATA\SkyPort" -Recurse
+# Stop and remove service (if installed)
+sc.exe stop SkyPortAgent
+sc.exe delete SkyPortAgent
 
-# Remove from PATH manually via Environment Variables
+# Remove installation directory
+Remove-Item "$env:ProgramFiles\SkyPort" -Recurse -Force
+
+# Remove configuration
+Remove-Item "$env:USERPROFILE\.skyport" -Recurse -Force
+
+# Remove from PATH via Environment Variables settings
 ```
 
 
