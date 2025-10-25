@@ -360,7 +360,7 @@ func runTunnel(cmd *cobra.Command, args []string) {
 		cmd.Stdout = nil
 		cmd.Stderr = nil
 		cmd.Stdin = nil
-		cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+		configureDaemonProcess(cmd)
 
 		if err := cmd.Start(); err != nil {
 			log.Fatalf(" Failed to start background daemon: %v", err)

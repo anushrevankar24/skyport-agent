@@ -34,7 +34,7 @@ go build \
               -X 'skyport-agent/internal/config.DefaultTunnelDomain=$SKYPORT_TUNNEL_DOMAIN' \
               -X 'skyport-agent/internal/config.DebugMode=$DEBUG_MODE'" \
     -o skyport-local \
-    cmd/skyport/main.go
+    ./cmd/skyport
 
 if [ $? -eq 0 ]; then
     echo ""
