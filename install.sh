@@ -80,6 +80,23 @@ chmod +x "/tmp/$BINARY_NAME"
 
 # Install to system
 echo "Installing to $INSTALL_DIR..."
+
+# Create install directory if it doesn't exist
+if [ ! -d "$INSTALL_DIR" ]; then
+    echo ""
+    echo "Creating $INSTALL_DIR directory..."
+    if ! sudo mkdir -p "$INSTALL_DIR"; then
+        echo ""
+        echo "Error: Could not create $INSTALL_DIR"
+        echo ""
+        echo "Alternative: Install to user directory"
+        echo "  mkdir -p ~/.local/bin"
+        echo "  mv /tmp/$BINARY_NAME ~/.local/bin/$BINARY_NAME"
+        echo "  export PATH=\"\$HOME/.local/bin:\$PATH\""
+        exit 1
+    fi
+fi
+
 if [ -w "$INSTALL_DIR" ]; then
     mv "/tmp/$BINARY_NAME" "$INSTALL_DIR/$BINARY_NAME"
     echo "Installed without sudo (directory is writable)"
